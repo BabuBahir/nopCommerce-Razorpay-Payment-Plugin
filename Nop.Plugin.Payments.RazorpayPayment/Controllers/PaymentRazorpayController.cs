@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using Nop.Core;
 using Nop.Plugin.Payments.RazorpayPayment.Models;
 using Nop.Services.Configuration;
@@ -88,7 +89,10 @@ public class PaymentRazorpayController : BasePaymentController
             };
 
             // Save Razorpay order ID in custom values for verification later
-            order.CustomValuesXml = rzpOrderId;
+            order.CustomValuesXml = JsonSerializer.Serialize(new Dictionary<string, string>
+            {
+                { "RazorpayOrderId", rzpOrderId }
+            });
             await _orderService.UpdateOrderAsync(order);
 
             return View(model);
@@ -127,13 +131,22 @@ public class PaymentRazorpayController : BasePaymentController
             var orderId = await _genericAttributeService.GetAttributeAsync<int>(customer, "RazorpayPaymentOrderId");
             var order = await _orderService.GetOrderByIdAsync(orderId);
 
-            if (order != null && order.CustomValuesXml == razorpayOrderId)
+            var customValues = !string.IsNullOrEmpty(order?.CustomValuesXml)
+                ? JsonSerializer.Deserialize<Dictionary<string, string>>(order.CustomValuesXml)
+                : null;
+
+            if (order != null && customValues != null
+                && customValues.TryGetValue("RazorpayOrderId", out var storedOrderId) && storedOrderId == razorpayOrderId)
             {
                 if (_orderProcessingService.CanMarkOrderAsPaid(order))
                 {
                     await _orderProcessingService.MarkOrderAsPaidAsync(order);
                 }
-                
+
+                customValues["RazorpayPaymentId"] = razorpayPaymentId;
+                order.CustomValuesXml = JsonSerializer.Serialize(customValues);
+                await _orderService.UpdateOrderAsync(order);
+
                 // Clear the generic attribute
                 await _genericAttributeService.SaveAttributeAsync<int>(customer, "RazorpayPaymentOrderId", 0);
 

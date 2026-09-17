@@ -1,14 +1,17 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Nop.Core;
 using Nop.Core.Domain.Orders;
 using Nop.Services.Configuration;
 using Nop.Services.Helpers;
 using Nop.Services.Localization;
+using Nop.Services.Logging;
 using Nop.Services.Orders;
 using Nop.Services.Payments;
 using Nop.Services.Plugins;
 using Nop.Plugin.Payments.RazorpayPayment.Components;
 using Nop.Services.Common;
+using Razorpay.Api;
 
 namespace Nop.Plugin.Payments.RazorpayPayment;
 
@@ -24,6 +27,7 @@ public class RazorpayPaymentProcessor : BasePlugin, IPaymentMethod
     protected readonly IOrderTotalCalculationService _orderTotalCalculationService;
     protected readonly ISettingService _settingService;
     protected readonly IWebHelper _webHelper;
+    protected readonly ILogger _logger;
 
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IWorkContext _workContext;
@@ -40,7 +44,8 @@ public class RazorpayPaymentProcessor : BasePlugin, IPaymentMethod
         IWebHelper webHelper,
         IHttpContextAccessor httpContextAccessor,
         IWorkContext workContext,
-        IGenericAttributeService genericAttributeService)
+        IGenericAttributeService genericAttributeService,
+        ILogger logger)
     {
         _razorpayPaymentSettings = razorpayPaymentSettings;
         _localizationService = localizationService;
@@ -50,6 +55,7 @@ public class RazorpayPaymentProcessor : BasePlugin, IPaymentMethod
         _httpContextAccessor = httpContextAccessor;
         _workContext = workContext;
         _genericAttributeService = genericAttributeService;
+        _logger = logger;
     }
 
     #endregion
@@ -86,9 +92,40 @@ public class RazorpayPaymentProcessor : BasePlugin, IPaymentMethod
         return Task.FromResult(new CapturePaymentResult { Errors = new[] { "Capture method not supported" } });
     }
 
-    public Task<RefundPaymentResult> RefundAsync(RefundPaymentRequest refundPaymentRequest)
+    public async Task<RefundPaymentResult> RefundAsync(RefundPaymentRequest refundPaymentRequest)
     {
-        return Task.FromResult(new RefundPaymentResult { Errors = new[] { "Refund method not supported" } });
+        var order = refundPaymentRequest.Order;
+
+        try
+        {
+            var customValues = !string.IsNullOrEmpty(order.CustomValuesXml)
+                ? JsonSerializer.Deserialize<Dictionary<string, string>>(order.CustomValuesXml)
+                : null;
+
+            if (customValues == null || !customValues.TryGetValue("RazorpayPaymentId", out var paymentId)
+                || string.IsNullOrEmpty(paymentId))
+            {
+                return new RefundPaymentResult { Errors = new[] { "Razorpay payment ID not found for this order." } };
+            }
+
+            var client = new RazorpayClient(_razorpayPaymentSettings.KeyId, _razorpayPaymentSettings.KeySecret);
+            var amountInPaise = Math.Round(refundPaymentRequest.AmountToRefund * 100, 0);
+
+            var options = new Dictionary<string, object>
+            {
+                { "amount", amountInPaise }
+            };
+
+            var payment = client.Payment.Fetch(paymentId);
+            payment.Refund(options);
+
+            return new RefundPaymentResult();
+        }
+        catch (Exception ex)
+        {
+            await _logger.ErrorAsync($"Razorpay refund failed for order {order.Id}: {ex.Message}", ex);
+            return new RefundPaymentResult { Errors = new[] { $"Razorpay refund failed: {ex.Message}" } };
+        }
     }
 
     public Task<VoidPaymentResult> VoidAsync(VoidPaymentRequest voidPaymentRequest)
@@ -106,7 +143,7 @@ public class RazorpayPaymentProcessor : BasePlugin, IPaymentMethod
         return Task.FromResult(new CancelRecurringPaymentResult { Errors = new[] { "Recurring payment not supported" } });
     }
 
-    public Task<bool> CanRePostProcessPaymentAsync(Order order)
+    public Task<bool> CanRePostProcessPaymentAsync(Nop.Core.Domain.Orders.Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
 
@@ -185,9 +222,9 @@ public class RazorpayPaymentProcessor : BasePlugin, IPaymentMethod
 
     public bool SupportCapture => false;
 
-    public bool SupportPartiallyRefund => false;
+    public bool SupportPartiallyRefund => true;
 
-    public bool SupportRefund => false;
+    public bool SupportRefund => true;
 
     public bool SupportVoid => false;
 
