@@ -3,7 +3,7 @@
   "FriendlyName": "Razorpay",
   "SystemName": "Payments.RazorpayPayment",
   "Version": "1.00",
-  "SupportedVersions": [ "4.90" ],
+  "SupportedVersions": [ "5.00" ],
   "Author": "Pankaj Dobariya",
   "DisplayOrder": 1,
   "FileName": "Nop.Plugin.Payments.RazorpayPayment.dll",
