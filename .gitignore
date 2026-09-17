@@ -24,7 +24,6 @@ x64/
 [Oo]ut/
 
 # Visual Studio Code files
-.vscode/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
@@ -160,3 +159,5 @@ $RECYCLE.BIN/
 
 # Mac crap
 .DS_Store 
+config.bat
+node_modules

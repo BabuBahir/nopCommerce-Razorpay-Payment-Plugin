@@ -9,7 +9,7 @@
     <PackageProjectUrl>https://www.nopcommerce.com/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/nopSolutions/nopCommerce</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
-    <OutputPath>D:\PROJECTS\nopCommerce\src\Presentation\Nop.Web\Plugins\Nop.Plugin.Payments.RazorpayPayment</OutputPath>
+	<OutputPath>$(SolutionDir)\Presentation\Nop.Web\Plugins\Nop.Plugin.Payments.RazorpayPayment</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
     <!--Set this parameter to true to get the dlls copied from the NuGet cache to the output of your project.
     You need to set this parameter to true if your plugin has a nuget package 
@@ -37,8 +37,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="D:\PROJECTS\nopCommerce\src\Presentation\Nop.Web\Nop.Web.csproj" />
-    <ClearPluginAssemblies Include="D:\PROJECTS\nopCommerce\src\Build\ClearPluginAssemblies.proj" />
+	  <ProjectReference Include="$(SolutionDir)\Presentation\Nop.Web\Nop.Web.csproj" />
+	  <ClearPluginAssemblies Include="$(SolutionDir)\Build\ClearPluginAssemblies.proj" />
   </ItemGroup>
 
   <ItemGroup>
