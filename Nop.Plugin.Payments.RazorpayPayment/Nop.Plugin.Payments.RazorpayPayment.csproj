@@ -42,7 +42,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Razorpay" Version="3.1.3" />
+    <PackageReference Include="Razorpay" Version="*" />
   </ItemGroup>
 
   <ItemGroup>
